@@ -11,5 +11,7 @@ int main() {
 
 	flan_sub(flan1, flan2);
 
+	printf("%d\n", flan_cmp(flan1, flan2));
+
 	printf("flan: %s\n", flan_as_str(flan1));
 }
