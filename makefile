@@ -3,7 +3,7 @@
 PROGRAM = ${shell basename "$$PWD"}
 CC = gcc
 
-FLAGS +=
+FLAGS += -pedantic -g
 
 SOURCE = src
 HEADER = src
@@ -15,7 +15,7 @@ OFILES = $(patsubst $(SOURCE)/%.c,$(OUTPUT)/%.o,$(CFILES))
 
 # INCLUDE any directories you want to search for headers in
 # This works for including <> style headers as well
-INCLUDE = 
+INCLUDE =
 
 # Compiles the main program, depends on the object files
 # $(patsubst %,-I %,$(INCLUDE))
@@ -50,6 +50,11 @@ endif
 run: $(PROGRAM)
 	@echo --- RUNNING ---
 	@./$(OUTPUT)/$(PROGRAM) $(RUN_ARGS)
+	@echo --- STOPPED ---
+
+dbg: $(PROGRAM)
+	@echo --- DEBUGMD ---
+	@gdb -q -ex=run ./$(OUTPUT)/$(PROGRAM) --batch
 	@echo --- STOPPED ---
 
 clean:
