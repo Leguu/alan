@@ -21,17 +21,21 @@ struct flan {
 };
 
 struct flan *flan_init(int);
-struct flan *flan_init_set(int, char *);
+struct flan *flan_init_str(int, char *);
+struct flan *flan_init_int(int, long);
 struct flan *flan_init_with(int, digit *);
-bool flan_set(struct flan *, char *);
+bool flan_set_str(struct flan *, char *);
+void flan_set_int(struct flan *, long);
 void flan_free(struct flan *);
 struct flan *flan_cpy(const struct flan *);
 
 void flan_add_digits(struct flan *, const struct flan *);
-void flan_add(struct flan *, const struct flan *);
+void flan_add(struct flan **, const struct flan *);
 void flan_sub_digits(struct flan *, const struct flan *);
-void flan_sub(struct flan *, const struct flan *);
-void flan_mod(struct flan *, const struct flan *);
+void flan_sub(struct flan **, const struct flan *);
+void flan_mod(struct flan **, const struct flan *);
+void flan_div(struct flan **, const struct flan *);
+void flan_mul(struct flan **, const struct flan *);
 
 int flan_cmp(const struct flan *, const struct flan *);
 int flan_num_digits(const struct flan *);
@@ -61,7 +65,7 @@ void flan_free(struct flan *self) {
 	free(self);
 }
 
-bool flan_set(struct flan *self, char *str) {
+bool flan_set_str(struct flan *self, char *str) {
 	int len = strlen(str) - 1;
 
 	// TODO: Check this? + 1 or not?
@@ -86,9 +90,26 @@ bool flan_set(struct flan *self, char *str) {
 	}
 }
 
-struct flan *flan_init_set(int len, char *str) {
+void flan_set_int(struct flan *self, long target) {
+	for (int i = 0; i < self->len; i++) {
+		self->digits[i] = target % 10;
+		target /= 10;
+	}
+	if (target < 0)
+		self->neg = true;
+	else
+		self->neg = false;
+}
+
+struct flan *flan_init_str(int len, char *str) {
 	struct flan *self = flan_init(len);
-	flan_set(self, str);
+	flan_set_str(self, str);
+	return self;
+}
+
+struct flan *flan_init_int(int len, long target) {
+	struct flan *self = flan_init(len);
+	flan_set_int(self, target);
 	return self;
 }
 
@@ -101,13 +122,14 @@ int flan_cmp(const struct flan *self, const struct flan *other) {
 
 	if (self_digits > other_digits)
 		return 1;
-	if (other_digits > self_digits)
+	else if (self_digits < other_digits)
 		return -1;
 
-	for (int i = self_digits; i >= 0; i--) {
+	// TODO: -1 necessary or not?
+	for (int i = self_digits - 1; i >= 0; i--) {
 		if (self->digits[i] > other->digits[i])
 			return 1;
-		if (other->digits[i] > self->digits[i])
+		else if (self->digits[i] < other->digits[i])
 			return -1;
 	}
 	return 0;
@@ -128,21 +150,21 @@ void flan_add_digits(struct flan *self, const struct flan *other) {
 	}
 }
 
-void flan_add(struct flan *self, const struct flan *other) {
-	if (other->neg && self->neg) {
-		flan_add_digits(self, other);
-	} else if (self->neg) {
-		struct flan *temp = flan_cpy(self);
+void flan_add(struct flan **self, const struct flan *other) {
+	if (other->neg && (*self)->neg) {
+		flan_add_digits(*self, other);
+	} else if ((*self)->neg) {
+		struct flan *temp = flan_cpy(*self);
 		temp->neg = false;
 
-		flan_free(self);
-		self = flan_cpy(other);
+		flan_free(*self);
+		*self = flan_cpy(other);
 
 		flan_sub(self, temp);
 
 		flan_free(temp);
 	} else {
-		flan_add_digits(self, other);
+		flan_add_digits(*self, other);
 	}
 }
 
@@ -163,35 +185,54 @@ void flan_sub_digits(struct flan *self, const struct flan *other) {
 	}
 }
 
-void flan_sub(struct flan *self, const struct flan *other) {
-	if (self->neg && other->neg) {
-		flan_sub_digits(self, other);
-	} else if (other->neg || self->neg) {
-		flan_add_digits(self, other);
+void flan_sub(struct flan **self, const struct flan *other) {
+	if ((*self)->neg && other->neg) {
+		flan_sub_digits(*self, other);
+	} else if (other->neg || (*self)->neg) {
+		flan_add_digits(*self, other);
 	} else {
 		// If both self and other are positive...
 		// and if self is less than other
-		if (flan_cmp(self, other) < 0) {
-			struct flan *temp = flan_cpy(self);
+		if (flan_cmp(*self, other) < 0) {
+			struct flan *temp = flan_cpy(*self);
 
-			flan_free(self);
-			self = flan_cpy(other);
-			self->neg = true;
+			flan_free(*self);
+			*self = flan_cpy(other);
+			(*self)->neg = true;
 
-			flan_sub_digits(self, temp);
+			flan_sub_digits(*self, temp);
 
 			flan_free(temp);
 		} else {
-			flan_sub_digits(self, other);
+			flan_sub_digits(*self, other);
 		}
 	}
 }
 
-void flan_mod(struct flan *self, const struct flan *other) {
+void flan_mod(struct flan **self, const struct flan *other) {
 	do {
 		flan_sub(self, other);
-	} while (!self->neg);
+	} while (!(*self)->neg);
 	flan_add(self, other);
+}
+
+void flan_div(struct flan **self, const struct flan *other) {
+	int i = -1;
+	for (; !(*self)->neg; i++, flan_sub(self, other))
+		;
+	flan_set_int(*self, i);
+}
+
+void flan_mul(struct flan **self, const struct flan *other) {
+	struct flan *original = flan_cpy(*self);
+	struct flan *i = flan_init_int((*self)->len, 1);
+	struct flan *one = flan_init_int(1, 1);
+	for (; flan_cmp(i, other) != 0; flan_add(&i, one)) {
+		flan_add(self, original);
+	}
+	flan_free(original);
+	flan_free(one);
+	flan_free(i);
 }
 
 int flan_num_digits(const struct flan *self) {
