@@ -82,10 +82,7 @@ bool flan_set_str(Flan *self, char *str) {
 	if (len + 1 > self->len)
 		return false;
 
-	if (str[0] == '-')
-		self->neg = true;
-	else
-		self->neg = false;
+	self->neg = str[0] == '-';
 
 	bool recording = false;
 
@@ -238,16 +235,10 @@ void flan_mul(Flan **self, const Flan *other) {
 }
 
 int flan_digits(const Flan *self) {
-	int i = 0;
-
-	bool recording = true;
-	for (; i < self->len; i++)
+	for (int i = self->len; i >= 0; i--)
 		if (self->digits[i] != 0)
-			recording = false;
-		else if (!recording)
-			break;
-
-	return (i == self->len ? 0 : i + 1);
+			return i + 1;
+	return 0;
 }
 
 char *flan_as_str(const Flan *self) {
